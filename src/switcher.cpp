@@ -679,8 +679,13 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 	if (!knownCategory_)
 		refreshChannel();
 	if (sameName(category->name, *knownCategory_)) {
-		if (immediate)
-			addHistory(QString(Tr("Status.CategoryAlready")).arg(qstr(category->name)));
+		if (immediate) {
+			// Ohne Spielfortschritt ändert sich der schon erneuerte Titel nicht – das dazusagen
+			const bool titleKept = titleSynced_ && cfg.titleMode != TitleMode::Keep &&
+					       (!detection.isGame || !cfg.progressTitles);
+			addHistory(QString(Tr(titleKept ? "Status.CategoryAlreadyTitleKept" : "Status.CategoryAlready"))
+					   .arg(qstr(category->name)));
+		}
 		resetCandidate();
 		lastBlocked_.clear();
 		lastSkip_.clear();
