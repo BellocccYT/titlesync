@@ -129,6 +129,7 @@ struct Settings {
 	bool progressTitles = true;           // Titel auch bei Fortschritt im selben Spiel anpassen
 	std::string progressLevel = "normal"; // „big“, „normal“ oder „often“ – was als neuer Abschnitt zählt
 	int progressMinutes = 5;              // frühestens so oft
+	bool idleTitles = true;               // ohne Spiel (z. B. Just Chatting) Titel regelmäßig erneuern
 
 	bool voiceEnabled = false;
 	std::string voiceSource; // leer = Mikrofon automatisch wählen

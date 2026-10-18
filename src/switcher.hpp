@@ -115,6 +115,7 @@ private:
 	void apply(const Settings &cfg, const Category &category, const std::string &scene,
 		   const std::vector<std::string> &keywords, const GameRule *rule);
 	void maybeProgressTitle(const Settings &cfg, const Detection &detection, const GameRule *rule);
+	void maybeIdleTitle(const Settings &cfg, bool immediate);
 	void maybeSyncTitle(const Settings &cfg, const Category &category, const Detection &detection,
 			    const GameRule *rule, bool immediate);
 	void retitle(const Settings &cfg, const std::string &scene, const GameRule *rule, const QString &historyPrefix);
@@ -186,6 +187,7 @@ private:
 	int progressHits_ = 0;
 	bool titleSynced_ = false; // in diesem Stream schon einen Titel geschrieben
 	int syncHits_ = 0;
+	int idleHits_ = 0; // Prüfungen ohne Spiel seit dem letzten Titel
 	bool progressWaitLogged_ = false;
 	std::optional<std::chrono::steady_clock::time_point> lastTitleChange_;
 	// Steam-Abgleich je erkanntem Namen: Ergebnis (leer = abgelehnt) und Ablaufzeit

@@ -682,7 +682,7 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 		if (immediate) {
 			// Ohne Spielfortschritt ändert sich der schon erneuerte Titel nicht – das dazusagen
 			const bool titleKept = titleSynced_ && cfg.titleMode != TitleMode::Keep &&
-					       (!detection.isGame || !cfg.progressTitles);
+					       (detection.isGame ? !cfg.progressTitles : !cfg.idleTitles);
 			addHistory(QString(Tr(titleKept ? "Status.CategoryAlreadyTitleKept" : "Status.CategoryAlready"))
 					   .arg(qstr(category->name)));
 		}
@@ -691,6 +691,8 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 		lastSkip_.clear();
 		if (!titleSynced_ && cfg.titleMode != TitleMode::Keep)
 			maybeSyncTitle(cfg, *category, detection, certain ? rule : nullptr, immediate);
+		else if (!rule && haveDetection && !detection.isGame)
+			maybeIdleTitle(cfg, immediate);
 		else if (haveDetection && sure)
 			maybeProgressTitle(cfg, detection, rule);
 		return;
@@ -873,6 +875,33 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 	retitle(cfg, detection.scene, rule, Tr("Status.TitleAdjustedNewSection"));
 }
 
+// Ohne Spiel (z. B. Just Chatting) nach einigen Prüfungen einen neuen Titel, frühestens wie beim Spielfortschritt
+void Switcher::maybeIdleTitle(const Settings &cfg, bool immediate)
+{
+	if (!cfg.idleTitles || cfg.titleMode == TitleMode::Keep) {
+		idleHits_ = 0;
+		return;
+	}
+	constexpr int kIdleChecks = 3;
+	idleHits_++;
+	if (idleHits_ < kIdleChecks) {
+		if (immediate)
+			addHistory(QString(Tr("Status.IdleTitleQueued")).arg(idleHits_).arg(kIdleChecks));
+		return;
+	}
+	const auto now = std::chrono::steady_clock::now();
+	const auto minimum = std::chrono::minutes(cfg.progressMinutes);
+	if (lastTitleChange_ && now - *lastTitleChange_ < minimum) {
+		if (immediate) {
+			const auto left =
+				std::chrono::duration_cast<std::chrono::minutes>(minimum - (now - *lastTitleChange_));
+			addHistory(QString(Tr("Status.IdleTitleAt")).arg(left.count() + 1));
+		}
+		return;
+	}
+	retitle(cfg, std::string(), nullptr, Tr("Status.TitleRenewed"));
+}
+
 // Kategorie stimmt schon, aber in diesem Stream steht noch ein alter Titel – nach den Bestätigungen erneuern
 void Switcher::maybeSyncTitle(const Settings &cfg, const Category &category, const Detection &detection,
 			      const GameRule *rule, bool immediate)
@@ -906,6 +935,7 @@ void Switcher::retitle(const Settings &cfg, const std::string &scene, const Game
 	const std::string title = core.empty() ? std::string() : composeTitle(cfg, core);
 	titleScene_ = scene;
 	titleSynced_ = true;
+	idleHits_ = 0;
 	lastTitleChange_ = std::chrono::steady_clock::now();
 	if (title.empty() || title == channel.title)
 		return;
@@ -1067,6 +1097,7 @@ void Switcher::apply(const Settings &cfg, const Category &category, const std::s
 	titleActivity_.clear(); // nächste Erkennung setzt den Ausgangspunkt
 	titleSynced_ = true;
 	syncHits_ = 0;
+	idleHits_ = 0;
 	progressHits_ = 0;
 	progressWaitLogged_ = false;
 	lastTitleChange_ = std::chrono::steady_clock::now();

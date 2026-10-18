@@ -115,6 +115,7 @@ private:
 	QLineEdit *titleSuffix_;
 	QLabel *titlePreview_;
 	QCheckBox *progressTitles_;
+	QCheckBox *idleTitles_;
 	QComboBox *progressLevel_;
 	QSpinBox *progressMinutes_;
 

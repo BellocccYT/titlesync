@@ -415,6 +415,10 @@ QWidget *SettingsDialog::createTitleTab()
 	progressLevel_->addItem(Tr("Settings.EveryCheck"), QStringLiteral("every"));
 	progressLevel_->setCurrentIndex(std::max(0, progressLevel_->findData(qstr(settings_.progressLevel))));
 	progressForm->addRow(Tr("Settings.HowOften"), progressLevel_);
+	idleTitles_ = new QCheckBox(Tr("Settings.IdleTitles"));
+	idleTitles_->setChecked(settings_.idleTitles);
+	idleTitles_->setToolTip(Tr("Settings.IdleTitlesHint"));
+	progressForm->addRow(idleTitles_);
 	progressMinutes_ = new QSpinBox;
 	progressMinutes_->setRange(2, 240);
 	progressMinutes_->setSingleStep(1);
@@ -434,14 +438,18 @@ QWidget *SettingsDialog::createTitleTab()
 		titleTemplate_->setEnabled(mode != TitleMode::Keep);
 		progressTitles_->setEnabled(mode != TitleMode::Keep);
 		// „Bei jeder Prüfung“ richtet sich nach dem Prüfintervall, nicht nach der Mindestpause
-		progressMinutes_->setEnabled(mode != TitleMode::Keep && progressTitles_->isChecked() &&
-					     progressLevel_->currentData().toString() != QLatin1String("every"));
+		progressMinutes_->setEnabled(mode != TitleMode::Keep &&
+					     ((progressTitles_->isChecked() &&
+					       progressLevel_->currentData().toString() != QLatin1String("every")) ||
+					      idleTitles_->isChecked()));
+		idleTitles_->setEnabled(mode != TitleMode::Keep);
 		progressLevel_->setEnabled(mode != TitleMode::Keep && progressTitles_->isChecked());
 		updateTitlePreview();
 	};
 	connect(titleMode_, &QComboBox::currentIndexChanged, this, updateEnabled);
 	connect(progressLevel_, &QComboBox::currentIndexChanged, this, updateEnabled);
 	connect(progressTitles_, &QCheckBox::toggled, this, updateEnabled);
+	connect(idleTitles_, &QCheckBox::toggled, this, updateEnabled);
 	connect(titleTemplate_, &QLineEdit::textChanged, this, &SettingsDialog::updateTitlePreview);
 	connect(titleEmojis_, &QCheckBox::toggled, this, &SettingsDialog::updateTitlePreview);
 	connect(titlePrefix_, &QLineEdit::textChanged, this, &SettingsDialog::updateTitlePreview);
@@ -943,6 +951,7 @@ void SettingsDialog::save()
 	settings_.titlePrefix = text(titlePrefix_);
 	settings_.titleSuffix = text(titleSuffix_);
 	settings_.progressTitles = progressTitles_->isChecked();
+	settings_.idleTitles = idleTitles_->isChecked();
 	settings_.progressMinutes = progressMinutes_->value();
 	settings_.progressLevel = progressLevel_->currentData().toString().toStdString();
 	settings_.youtubeClientId = text(youtubeClientId_);

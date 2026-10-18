@@ -269,6 +269,7 @@ Settings loadSettings()
 	getBool("title_emojis", s.titleEmojis);
 	getString("twitch_tags", s.twitchTags);
 	getBool("progress_titles", s.progressTitles);
+	getBool("idle_titles", s.idleTitles);
 	getString("progress_level", s.progressLevel);
 	getString("youtube_client_id", s.youtubeClientId);
 	getString("youtube_client_secret", s.youtubeClientSecret);
@@ -337,6 +338,7 @@ void saveSettings(const Settings &s)
 	obs_data_set_bool(data, "title_emojis", s.titleEmojis);
 	obs_data_set_string(data, "twitch_tags", s.twitchTags.c_str());
 	obs_data_set_bool(data, "progress_titles", s.progressTitles);
+	obs_data_set_bool(data, "idle_titles", s.idleTitles);
 	obs_data_set_string(data, "progress_level", s.progressLevel.c_str());
 	obs_data_set_string(data, "youtube_client_id", s.youtubeClientId.c_str());
 	obs_data_set_string(data, "youtube_client_secret", s.youtubeClientSecret.c_str());
