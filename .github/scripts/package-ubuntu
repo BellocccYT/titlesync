@@ -180,6 +180,31 @@ ${_usage_host:-}"
     log_error "Plugin module ${product_name}.so not found in release/${config}"
     return 2
   }
+  # OBS lehnt Module ab, die gegen ein neueres libobs gebaut sind – Version im Modul prüfen
+  local obs_version
+  obs_version=$(jq -r '.dependencies["obs-studio"].version' ${buildspec_file})
+  local module_check=${project_root}/release/module-version
+  print -r -- '#include <dlfcn.h>
+#include <stdio.h>
+#include <stdint.h>
+int main(int argc, char **argv) {
+  void *module = dlopen(argv[1], RTLD_LAZY | RTLD_LOCAL);
+  uint32_t (*version)(void) = module ? (uint32_t (*)(void))dlsym(module, "obs_module_ver") : NULL;
+  if (!version) { fprintf(stderr, "%s\n", module ? "obs_module_ver missing" : dlerror()); return 1; }
+  uint32_t v = version();
+  printf("%u.%u.%u\n", v >> 24, (v >> 16) & 0xff, v & 0xffff);
+  return 0;
+}' > ${module_check}.c
+  cc -o ${module_check} ${module_check}.c -ldl
+  local module_version
+  module_version=$(${module_check} ${modules[1]})
+  rm -f ${module_check} ${module_check}.c
+  if [[ ${module_version%.*} != ${obs_version%.*} ]] {
+    log_error "${product_name}.so was built against libobs ${module_version}, expected ${obs_version}"
+    return 2
+  }
+  log_info "${product_name}.so: obs_module_ver ${module_version}"
+
   rm -rf ${portable_root}
   mkdir -p ${plugin_dir}/bin/64bit ${plugin_dir}/data
   cp ${modules[1]} ${plugin_dir}/bin/64bit/
@@ -208,6 +233,15 @@ ${_usage_host:-}"
 
   curl -fsSL -o ${appimagetool} \
     https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+  local -r appimagetool_hash='ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0'
+  local appimagetool_checksum
+  read -r appimagetool_checksum _ <<< "$(sha256sum ${appimagetool})"
+  if [[ ${appimagetool_checksum} != ${appimagetool_hash} ]] {
+    log_error "Checksum of downloaded appimagetool does not match.
+Expected : ${appimagetool_hash}
+Actual   : ${appimagetool_checksum}"
+    return 2
+  }
   chmod 755 ${appimagetool}
   ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ${appimagetool} ${appdir} \
     ${project_root}/release/${product_name}-${product_version}-x86_64-linux-setup.AppImage

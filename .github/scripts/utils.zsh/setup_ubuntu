@@ -35,12 +35,30 @@ if (( ! (${skips[(Ie)all]} + ${skips[(Ie)deps]}) )) {
     sudo apt-get install ${apt_args} gcc-${${target##*-}//_/-}-linux-gnu g++-${${target##*-}//_/-}-linux-gnu
   }
 
+  # obs-studio aus dem PPA bleibt installiert, damit dpkg-shlibdeps für das .deb
+  # die Abhängigkeit „obs-studio“ findet – gebaut wird aber gegen OBS aus den Quellen (siehe unten)
   sudo add-apt-repository --yes ppa:obsproject/obs-studio
   sudo apt update
 
   sudo apt-get install ${apt_args} \
     build-essential \
+    extra-cmake-modules \
+    libcurl4-openssl-dev \
+    libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev \
+    libswresample-dev libswscale-dev \
+    libjansson-dev \
+    libx11-dev libx11-xcb-dev libxcb1-dev libxcb-randr0-dev libxcb-shm0-dev \
+    libxcb-xinerama0-dev libxcb-composite0-dev libxcb-xfixes0-dev libxinerama-dev \
+    libwayland-dev \
+    libpulse-dev \
+    libgl1-mesa-dev \
     libgles2-mesa-dev \
+    libglvnd-dev \
+    libglib2.0-dev \
+    libxkbcommon-dev \
+    libpci-dev \
+    libdrm-dev \
+    uthash-dev \
     libsimde-dev \
     obs-studio
 
@@ -62,5 +80,64 @@ if (( ! (${skips[(Ie)all]} + ${skips[(Ie)deps]}) )) {
   }
 
   sudo apt-get install ${apt_args} ${_qt_packages}
+  log_group
+}
+
+# libobs und obs-frontend-api aus den OBS-Quellen der buildspec.json bauen. OBS lädt nur Module,
+# deren libobs-Version (major.minor) nicht neuer ist als die eigene – gegen das aktuelle PPA
+# gebaut, liefe das Plugin z. B. nicht mit Fedoras OBS 32.1.
+local obs_version obs_baseurl obs_hash
+read -r obs_version obs_baseurl obs_hash <<< \
+  "$(jq -r --arg target "${target}" \
+    '.dependencies["obs-studio"] | [.version, .baseUrl, .hashes[$target]] | join(" ")' \
+    ${buildspec_file})"
+if [[ -z ${obs_hash} ]] {
+  log_error "No obs-studio hash for ${target} in buildspec.json."
+  return 2
+}
+
+local deps_dir=${project_root}/.deps
+local obs_source=${deps_dir}/obs-studio-${obs_version}
+typeset -g OBS_PREFIX=${deps_dir}/obs-studio-${obs_version}-${target}
+
+if [[ -r ${OBS_PREFIX}/.sha256 && $(<${OBS_PREFIX}/.sha256) == ${obs_hash} ]] {
+  log_info "OBS ${obs_version} (${target}) already built - skipped"
+} else {
+  log_group "Building libobs ${obs_version} from source..."
+  mkdir -p ${deps_dir}
+  local obs_archive=${deps_dir}/obs-studio-${obs_version}.tar.gz
+  curl --fail --show-error --silent --location -o ${obs_archive} ${obs_baseurl}/${obs_version}.tar.gz
+
+  local obs_checksum
+  read -r obs_checksum _ <<< "$(sha256sum ${obs_archive})"
+  if [[ ${obs_checksum} != ${obs_hash} ]] {
+    log_error "Checksum of downloaded OBS sources does not match specification.
+Expected : ${obs_hash}
+Actual   : ${obs_checksum}"
+    return 2
+  }
+  log_status "Checksum of downloaded OBS sources matches."
+
+  rm -rf ${obs_source} ${OBS_PREFIX}
+  mkdir -p ${obs_source}
+  tar --strip-components 1 -xzf ${obs_archive} -C ${obs_source}
+
+  local -a obs_cmake_args=(
+    -S ${obs_source}
+    -B ${obs_source}/build_${target##*-}
+    -G Ninja
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DCMAKE_INSTALL_LIBDIR=lib/${target##*-}-linux-gnu
+    -DOBS_VERSION_OVERRIDE=${obs_version}
+    -DENABLE_PLUGINS=OFF
+    -DENABLE_FRONTEND=OFF
+    -DENABLE_SCRIPTING=OFF
+  )
+  if (( _loglevel == 0 )) obs_cmake_args+=(-Wno-dev --log-level=ERROR)
+  cmake ${obs_cmake_args}
+  cmake --build ${obs_source}/build_${target##*-} --parallel
+  # Alle Komponenten: libobs.so selbst steckt in „Runtime“, nicht in „Development“
+  cmake --install ${obs_source}/build_${target##*-} --prefix ${OBS_PREFIX}
+  print -r -- ${obs_hash} > ${OBS_PREFIX}/.sha256
   log_group
 }
