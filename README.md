@@ -193,7 +193,7 @@ Bei Online-Anbietern prüfst du den Key mit **Modelle laden** und wählst dabei 
 | | Sprache / Emojis | Deutsch oder Englisch. Mit „Emojis aus“ entfernt das Plugin Emojis selbst, egal was das Modell schreibt. |
 | | Vorlage | Platzhalter `{game}`, `{scene}` (Situation im Spiel) und `{keywords}` (Stichwörter aus deiner Stimme) |
 | | Immer vorne / hinten | Feste Teile wie `[DE]` oder `\| !discord`. Das Plugin setzt sie selbst an jeden Titel. |
-| | Spielfortschritt | Titel auch bei neuem Abschnitt im selben Spiel anpassen. **Wie oft:** Selten (Bosskampf, Sieg, Niederlage), Normal (jeder Wechsel der Aktivität außer gewöhnlichen Kämpfen) oder Häufig (jeder Wechsel, sofort). Frühestens alle 15 Minuten, einstellbar ab 2 Minuten. |
+| | Spielfortschritt | Titel auch bei neuem Abschnitt im selben Spiel anpassen. **Wie oft:** Selten (Bosskampf, Sieg, Niederlage), Normal (jeder Wechsel der Aktivität außer gewöhnlichen Kämpfen) oder Häufig (jeder Wechsel, sofort). Frühestens alle 5 Minuten (empfohlen), einstellbar ab 2 Minuten. |
 | YouTube | Client-ID / Clientschlüssel | Eigenes Google-Cloud-Projekt, Schritt-für-Schritt-Anleitung im Reiter |
 | Stimme | Stimme mithören | Lokale Spracherkennung (whisper.cpp), Mikrofon und Modell wählbar. Standard aus. |
 | Zuordnungen | | Programm, Fenstertitel enthält (für Emulatoren), Kategorie, eigener Titel, Tags |

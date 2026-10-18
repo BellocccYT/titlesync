@@ -420,7 +420,10 @@ QWidget *SettingsDialog::createTitleTab()
 	progressMinutes_->setSingleStep(1);
 	progressMinutes_->setSuffix(" min");
 	progressMinutes_->setValue(settings_.progressMinutes);
-	progressForm->addRow(Tr("Settings.AtMostEvery"), progressMinutes_);
+	auto *minutesRow = new QHBoxLayout;
+	minutesRow->addWidget(progressMinutes_);
+	minutesRow->addWidget(hint(Tr("Settings.RecommendedFiveMinutes")), 1);
+	progressForm->addRow(Tr("Settings.AtMostEvery"), minutesRow);
 	outer->addWidget(progress);
 	outer->addStretch(1);
 

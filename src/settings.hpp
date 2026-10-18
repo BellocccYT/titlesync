@@ -128,7 +128,7 @@ struct Settings {
 	std::string twitchTags;               // bei jedem Wechsel setzen (leer = Tags nicht anfassen)
 	bool progressTitles = true;           // Titel auch bei Fortschritt im selben Spiel anpassen
 	std::string progressLevel = "normal"; // „big“, „normal“ oder „often“ – was als neuer Abschnitt zählt
-	int progressMinutes = 15;             // frühestens so oft
+	int progressMinutes = 5;              // frühestens so oft
 
 	bool voiceEnabled = false;
 	std::string voiceSource; // leer = Mikrofon automatisch wählen
