@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TitleSync – Hilfe &amp; Einrichtung</title>
+<meta name="description" content="Einrichtung von TitleSync Schritt für Schritt, feste Zuordnungen für Spiele und Emulatoren und Antworten auf „Warum wechselt TitleSync nicht?“.">
+<meta property="og:title" content="TitleSync – Hilfe & Einrichtung">
+<meta property="og:description" content="Einrichtung, Zuordnungen und Fehlersuche für das OBS-Plugin TitleSync.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://bellocccyt.github.io/titlesync/hilfe.html">
+<meta property="og:image" content="https://bellocccyt.github.io/titlesync/social-preview.png">
+<meta name="theme-color" content="#0e0e14">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #0e0e14;
+    --bg-soft: #16161f;
+    --card: #1b1b26;
+    --line: #2a2a3a;
+    --text: #ececf3;
+    --muted: #a1a1b5;
+    --accent: #9146ff;
+    --accent-2: #b98aff;
+    --ok: #3fb950;
+    --warn: #f0c24b;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent-2); }
+  code { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: .92em; overflow-wrap: anywhere; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+
+  /* Kopf */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(14, 14, 20, .85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  header .wrap { display: flex; align-items: center; gap: 16px; height: 60px; max-width: 1080px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+  .brand img { width: 30px; height: 30px; }
+  nav { margin-left: auto; display: flex; gap: 20px; }
+  nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  nav a:hover, nav a.active { color: var(--text); }
+
+  .hero {
+    padding: 56px 0 36px;
+    background: radial-gradient(600px 260px at 50% 0%, rgba(145, 70, 255, .24), transparent 70%);
+  }
+  h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -.02em; }
+  h1 span { background: linear-gradient(90deg, var(--accent-2), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 18px; color: var(--muted); margin: 0 0 24px; }
+
+  /* Inhaltsverzeichnis */
+  .toc { display: flex; flex-wrap: wrap; gap: 10px; }
+  .toc a { padding: 8px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); color: var(--text); text-decoration: none; font-size: 14px; }
+  .toc a:hover { border-color: var(--accent); }
+
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: clamp(24px, 3.6vw, 32px); margin: 0 0 10px; letter-spacing: -.01em; }
+  h3 { font-size: 18px; margin: 28px 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); }
+
+  /* Schritte */
+  ol.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; counter-reset: s; }
+  ol.steps > li { counter-increment: s; display: flex; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  ol.steps > li::before { content: counter(s); flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: rgba(145, 70, 255, .18); color: var(--accent-2); }
+  ol.steps > li > div { min-width: 0; }
+  ol.steps strong { display: block; margin-bottom: 4px; }
+  ol.steps p, ol.steps ul { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+  ol.steps ul { padding-left: 20px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin: 16px 0; }
+  .card p:first-child { margin-top: 0; }
+  .card p:last-child { margin-bottom: 0; }
+  .tip { border-left: 3px solid var(--accent); }
+  .warn { border-left: 3px solid var(--warn); }
+
+  /* Tabelle */
+  .table { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; min-width: 520px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 15px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; background: var(--bg-soft); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* Fehlersuche */
+  details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 20px; margin-bottom: 12px; }
+  details:target { border-color: var(--accent); }
+  summary { cursor: pointer; padding: 16px 0; font-weight: 600; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; float: right; color: var(--accent-2); font-size: 20px; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details p, details ul { margin: 0 0 16px; color: var(--muted); }
+  details ul { padding-left: 20px; }
+  .msg { display: block; margin: 0 0 12px; padding: 10px 14px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 10px; font-size: 14px; color: var(--text); }
+
+  footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; max-width: 1080px; }
+
+  @media (max-width: 720px) {
+    nav { display: none; }
+    ol.steps > li { padding: 16px; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="logo.svg" alt=""> TitleSync</a>
+    <nav>
+      <a href="./#funktionen">Funktionen</a>
+      <a href="./#installation">Installation</a>
+      <a href="./#ki">KI-Anbieter</a>
+      <a href="./#faq">Fragen</a>
+      <a class="active" href="hilfe.html">Hilfe</a>
+      <a href="https://github.com/BellocccYT/titlesync">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>Hilfe &amp; <span>Einrichtung</span></h1>
+      <p class="lead">Alles, was du für TitleSync brauchst: Einrichtung Schritt für Schritt, feste Zuordnungen und was zu tun ist, wenn die Kategorie nicht wechselt.</p>
+      <div class="toc">
+        <a href="#einrichtung">Einrichtung</a>
+        <a href="#ki">KI wählen</a>
+        <a href="#zuordnungen">Zuordnungen</a>
+        <a href="#intervall">Prüfintervall</a>
+        <a href="#wechselt-nicht">Warum wechselt TitleSync nicht?</a>
+      </div>
+    </div>
+  </div>
+
+  <section id="einrichtung">
+    <div class="wrap">
+      <h2>Einrichtung Schritt für Schritt</h2>
+      <p class="sub">Einmal etwa fünf Minuten, danach läuft alles von allein.</p>
+      <ol class="steps">
+        <li><div>
+          <strong>Setup herunterladen und starten</strong>
+          <p>Lade die neueste <a href="https://github.com/BellocccYT/titlesync/releases/latest">TitleSync-Setup.exe</a> herunter. OBS sollte dabei geschlossen sein. Warnt Windows mit „Der Computer wurde durch Windows geschützt“, klick auf „Weitere Informationen → Trotzdem ausführen“ (das Setup ist noch nicht signiert).</p>
+          <p>Lass den Haken bei <b>„Ollama installieren“</b>, wenn du die kostenlose lokale KI willst. Das Setup lädt dann Ollama und das Bildmodell (ca. 4,9 GB, Grafikkarte mit mindestens 4 GB Speicher). Wer lieber einen Online-Anbieter nutzt, entfernt den Haken (siehe <a href="#ki">KI wählen</a>).</p>
+        </div></li>
+        <li><div>
+          <strong>OBS starten und das Dock öffnen</strong>
+          <p>Das Dock „TitleSync“ erscheint automatisch. Falls nicht: Menü <b>Docks → TitleSync</b>. Über <b>„Einstellungen …“</b> im Dock erreichst du alle Optionen.</p>
+        </div></li>
+        <li><div>
+          <strong>KI einstellen</strong>
+          <p>Reiter <b>KI</b>: Mit Ollama ist nichts zu tun. Für NVIDIA oder einen anderen Anbieter den Key eintragen, auf <b>„Modelle laden“</b> klicken und Modell sowie Ersatzmodell auswählen.</p>
+        </div></li>
+        <li><div>
+          <strong>Twitch und/oder YouTube verbinden</strong>
+          <ul>
+            <li><b>Twitch:</b> Reiter Twitch → „Mit Twitch verbinden“. Im Browser den angezeigten Code bestätigen – fertig. Eine eigene Twitch-App brauchst du nicht.</li>
+            <li><b>YouTube:</b> Hier ist einmalig ein eigenes, kostenloses Google-Cloud-Projekt nötig. Der Reiter YouTube führt dich mit Links durch die fünf Schritte. Den Hinweis „App nicht überprüft“ bestätigst du mit „Weiter“. YouTube bekommt nur den Titel, eine Spiel-Kategorie gibt es dort nicht.</li>
+          </ul>
+        </div></li>
+        <li><div>
+          <strong>Bildquelle wählen</strong>
+          <p>Reiter <b>Erkennung → Bildquelle</b>: Am genauesten ist deine Spielaufnahme als einzelne Quelle, weil Webcam und Overlays die KI dann nicht ablenken. „Programmausgabe“ funktioniert auch. Trag außerdem bei <b>„Ohne Spiel“</b> eine Kategorie ein, z. B. <code>Just Chatting</code>.</p>
+        </div></li>
+        <li><div>
+          <strong>Spiel starten und „Test“ klicken</strong>
+          <p>Im Dock zeigt „Test“, was die KI erkennt und was sie umstellen würde – ohne dass sich auf Twitch oder YouTube etwas ändert. Passt das Ergebnis, ist TitleSync fertig eingerichtet.</p>
+        </div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="ki">
+    <div class="wrap">
+      <h2>KI wählen: Ollama oder NVIDIA</h2>
+      <p class="sub">Beide sind kostenlos. Ollama läuft auf deinem PC, NVIDIA in der Cloud.</p>
+
+      <h3>Ollama (lokal, Standard)</h3>
+      <p>Kein Konto, kein Key, keine Limits, und kein Bild verlässt deinen PC. Das Setup richtet Ollama und das Modell <code>qwen3-vl:4b-instruct</code> ein. Eine Prüfung dauert je nach Grafikkarte etwa 5–10 Sekunden. Ollama muss laufen (es startet normalerweise mit Windows).</p>
+
+      <h3 id="nvidia">NVIDIA NIM (kostenloser Key)</h3>
+      <p>Gut, wenn deine Grafikkarte zu klein ist oder schon vom Spiel ausgelastet wird.</p>
+      <ol class="steps">
+        <li><div><strong>Konto anlegen</strong><p>Auf <a href="https://build.nvidia.com">build.nvidia.com</a> registrieren, ein Modell öffnen und auf „Get API Key“ klicken. Der Key beginnt mit <code>nvapi-</code>.</p></div></li>
+        <li><div><strong>In TitleSync eintragen</strong><p>Einstellungen → KI → Anbieter <b>NVIDIA NIM</b>, Key einfügen, „Modelle laden“ klicken.</p></div></li>
+        <li><div><strong>Modelle wählen</strong>
+          <ul>
+            <li>Modell: <code>nvidia/nemotron-3.5-super-vl-120b-a12b</code></li>
+            <li>Ersatzmodell: <code>nvidia/nemotron-3-nano-omni-30b-a3b-reasoning</code></li>
+          </ul>
+          <p>Viele andere Modelle in der Liste sind für Gratis-Konten nicht freigeschaltet oder oft überlastet.</p>
+        </div></li>
+      </ol>
+      <div class="card tip">
+        <p>Ein kostenloses NVIDIA-Konto hat keine Credits, die ablaufen, sondern nur ein Limit von <b>40 Anfragen pro Minute</b>. Mit dem empfohlenen Prüfintervall von 60 Sekunden bist du weit darunter, auch mit Steam-Abgleich und KI-Titeln.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="zuordnungen">
+    <div class="wrap">
+      <h2>Feste Zuordnungen</h2>
+      <p class="sub">Zuordnungen stellen sofort und ohne KI um – 100 % sicher und kostenlos. Sie greifen, sobald OBS das Programm aufnimmt (Spiel- oder Fensteraufnahme) oder es das aktive Fenster ist.</p>
+
+      <h3>Am einfachsten: „Aktuelle Aufnahmen übernehmen“</h3>
+      <ol class="steps">
+        <li><div><strong>Spiel starten</strong><p>Das Spiel muss laufen und in OBS per Spiel- oder Fensteraufnahme aufgenommen werden.</p></div></li>
+        <li><div><strong>Einstellungen → Zuordnungen → „Aktuelle Aufnahmen übernehmen“</strong><p>TitleSync trägt die Programme ein, die OBS gerade aufnimmt. Ist schon die passende Kategorie gesetzt, wird sie vorgeschlagen; bei Emulatoren auch der Spielname aus dem Fenstertitel.</p></div></li>
+        <li><div><strong>Prüfen und speichern</strong><p>Twitch-Kategorie kontrollieren, nicht benötigte Zeilen entfernen, „Speichern“. Unvollständige Zeilen zeigt TitleSync dir vor dem Speichern an.</p></div></li>
+      </ol>
+
+      <h3>Spiele – ein Programm, ein Spiel</h3>
+      <p>Für normale PC-Spiele: Programm (.exe) → Twitch-Kategorie. Optional mit eigenem Titel und eigenen Tags für dieses Spiel.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Programm (.exe)</th><th>Twitch-Kategorie</th></tr></thead>
+          <tbody>
+            <tr><td><code>javaw.exe</code></td><td>Minecraft</td></tr>
+            <tr><td><code>eldenring.exe</code></td><td>Elden Ring</td></tr>
+            <tr><td><code>FortniteClient-Win64-Shipping.exe</code></td><td>Fortnite</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Emulatoren – ein Programm, viele Spiele</h3>
+      <p>Hier unterscheidet der Fenstertitel das Spiel. Trag denselben Emulator mehrmals ein, jeweils mit einem Teil des Fenstertitels. Groß- und Kleinschreibung spielt keine Rolle.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Emulator (.exe)</th><th>Fenstertitel enthält</th><th>Twitch-Kategorie</th></tr></thead>
+          <tbody>
+            <tr><td><code>Dolphin.exe</code></td><td>Mario Kart</td><td>Mario Kart: Double Dash!!</td></tr>
+            <tr><td><code>Dolphin.exe</code></td><td>Melee</td><td>Super Smash Bros. Melee</td></tr>
+            <tr><td><code>pcsx2-qt.exe</code></td><td>Kingdom Hearts</td><td>Kingdom Hearts</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="exe-finden">Wo finde ich den Namen der .exe?</h3>
+      <ol class="steps">
+        <li><div><strong>Spiel starten, dann Task-Manager öffnen</strong><p><code>Strg</code> + <code>Umschalt</code> + <code>Esc</code>.</p></div></li>
+        <li><div><strong>Reiter „Details“</strong><p>In der Spalte „Name“ steht der Programmname, z. B. <code>javaw.exe</code> für Minecraft. Tipp: Rechtsklick auf das Spiel im Reiter „Prozesse“ → „Zu Details wechseln“ markiert die richtige Zeile.</p></div></li>
+        <li><div><strong>Genau so eintragen</strong><p>Nur der Dateiname mit <code>.exe</code>, ohne Ordner. Der Spielname selbst („Minecraft“) ist kein Programmname.</p></div></li>
+      </ol>
+      <div class="card tip">
+        <p>Auch über <b>„Falsch erkannt?“</b> im Dock kannst du eine Zuordnung anlegen: Kategorie wählen und „Merken“ anhaken. Dann stellt TitleSync künftig sofort auf dieses Spiel um, sobald OBS das Programm aufnimmt.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="intervall">
+    <div class="wrap">
+      <h2>Welches Prüfintervall?</h2>
+      <p class="sub">Empfehlung: <b>60 Sekunden</b> (Standard).</p>
+      <p>Mit den Standard-Bestätigungen (2) wechselt TitleSync damit etwa ein bis zwei Minuten nach einem Spielwechsel. Kürzere Intervalle bringen kaum etwas, belasten aber Grafikkarte oder Anbieter-Limit stärker. Bei OpenRouter ohne Guthaben (rund 50 Anfragen am Tag) solltest du mindestens 5 Minuten einstellen.</p>
+      <p class="muted">Sofort umstellen kannst du jederzeit mit <b>„Jetzt prüfen“</b> im Dock – das überspringt die Bestätigungsrunden.</p>
+    </div>
+  </section>
+
+  <section id="wechselt-nicht">
+    <div class="wrap">
+      <h2>Warum wechselt TitleSync nicht?</h2>
+      <p class="sub">Der <b>Verlauf im Dock</b> sagt fast immer, warum. Such dort die passende Meldung und klapp unten den Eintrag auf.</p>
+
+      <details id="mindest-sicherheit"><summary>Erkennung zu unsicher (Mindest-Sicherheit)</summary>
+        <span class="msg">„Elden Ring“ nur zu 55 % sicher (Mindest-Sicherheit 70 %) – nichts geändert.</span>
+        <p>Die KI gibt zu jeder Erkennung an, wie sicher sie ist. Unter der Mindest-Sicherheit (Standard 70 %) stellt TitleSync nicht um. Auf Ladebildschirmen, in Menüs oder bei wenig typischen Szenen ist das normal und gewollt.</p>
+        <ul>
+          <li>Eine einzelne Spielquelle statt der Programmausgabe wählen (Einstellungen → Erkennung → Bildquelle).</li>
+          <li>„Programm- und Fensternamen als Hinweis mitsenden“ einschalten.</li>
+          <li>Für Spiele, die du oft spielst, eine <a href="#zuordnungen">Zuordnung</a> anlegen – dann entscheidet nicht die KI.</li>
+          <li>Notfalls die Mindest-Sicherheit etwas senken (z. B. 60 %).</li>
+        </ul>
+      </details>
+
+      <details id="bestaetigungen"><summary>„Wechsel vorgemerkt (1/2)“ – Bestätigungen</summary>
+        <span class="msg">Wechsel zu „Minecraft“ vorgemerkt (1/2)</span>
+        <p>Das neue Spiel muss so oft hintereinander erkannt werden, wie unter Einstellungen → Erkennung → Bestätigungen eingestellt (Standard 2). Das verhindert Wechsel, wenn du nur kurz in ein anderes Fenster schaust. Bei 60 s Intervall dauert ein Wechsel also bis zu zwei Minuten. „Jetzt prüfen“ stellt sofort um.</p>
+      </details>
+
+      <details id="kein-spiel"><summary>„Kein Spiel“ – aber die Kategorie bleibt</summary>
+        <span class="msg">Kein Spiel erkannt, aber keine Kategorie für „Ohne Spiel“ eingestellt – die Kategorie bleibt.</span>
+        <p>Erkennt die KI kein Spiel (Desktop, Browser, Pausenbild, Webcam), stellt TitleSync nur um, wenn unter <b>Einstellungen → Erkennung → Ohne Spiel</b> eine Kategorie eingetragen ist, z. B. <code>Just Chatting</code>. Bleibt das Feld leer, behält der Stream seine Kategorie. Auch „Ohne Spiel“ braucht die eingestellten Bestätigungen.</p>
+      </details>
+
+      <details id="video"><summary>„Video im Vordergrund“ zählt als kein Spiel</summary>
+        <span class="msg">Video im Vordergrund (YouTube)</span>
+        <p>Ein Video von einem Spiel sieht für die KI aus wie das Spiel selbst. Läuft deshalb im Vordergrund ein Browser mit YouTube, Twitch, Netflix &amp; Co. oder ein Videoplayer – und nimmt OBS kein anderes Programm auf –, wertet TitleSync das als „kein Spiel“. Mit eingestellter „Ohne Spiel“-Kategorie wechselt der Stream dann z. B. zu Just Chatting.</p>
+        <p>Schaust du bewusst ein Spiel-Video im Stream und willst die Kategorie behalten, lass „Ohne Spiel“ leer oder pausiere die Automatik im Dock.</p>
+      </details>
+
+      <details id="steam"><summary>Steam-Abgleich: „Das Bild passt zu keinem der vermuteten Spiele“</summary>
+        <span class="msg">Kein Wechsel – das Bild passt zu keinem der vermuteten Spiele</span>
+        <p>Vor einem Wechsel holt TitleSync Screenshots der infrage kommenden Spiele aus dem Steam-Shop und lässt die KI vergleichen. Passt keiner, wird nicht umgestellt – meist hat die KI dann falsch geraten. Spiele, die es nicht bei Steam gibt, werden ohne Abgleich umgestellt.</p>
+        <p>Passiert das bei einem Spiel immer wieder, leg eine <a href="#zuordnungen">Zuordnung</a> an oder schalte den Abgleich unter Einstellungen → Erkennung aus.</p>
+      </details>
+
+      <details id="pause-korrektur"><summary>Pause nach „Falsch erkannt?“ (15 Minuten)</summary>
+        <span class="msg">Nach deiner Korrektur stellt die KI noch 12 min nicht um (Zuordnungen schon).</span>
+        <p>Hast du über „Falsch erkannt?“ selbst eine Kategorie gesetzt, stellt die KI 15 Minuten lang nicht um, damit sie deine Korrektur nicht sofort wieder überschreibt. Feste Zuordnungen greifen trotzdem. Mit „Merken“ wird aus der Korrektur eine dauerhafte Zuordnung.</p>
+      </details>
+
+      <details id="gesperrt"><summary>„… ist gesperrt – kein Wechsel“</summary>
+        <span class="msg">„Bloodborne“ ist gesperrt – kein Wechsel</span>
+        <p>Die Kategorie steht unter Einstellungen → Erkennung → <b>Nie umstellen auf</b>. Das ist praktisch für Spiele, mit denen die KI dein Spiel oft verwechselt. Feste Zuordnungen gelten trotzdem. Steht dort versehentlich etwas wie <code>Just Chatting</code>, entferne es.</p>
+      </details>
+
+      <details id="titel"><summary>Kategorie stimmt, aber der Titel ändert sich nicht</summary>
+        <p>Der Titel wird bei jedem Spielwechsel neu gesetzt. Innerhalb desselben Spiels nur, wenn unter Einstellungen → Titel → <b>Spielfortschritt</b> „Titel auch anpassen, wenn sich im Spiel etwas Wichtiges ändert“ an ist. Dann gilt:</p>
+        <ul>
+          <li><b>Wie oft:</b> „Selten“, „Normal“, „Häufig“ oder <b>„Bei jeder Prüfung“</b> – Letzteres passt den Titel an, sobald sich die Situation ändert.</li>
+          <li><b>Frühestens alle:</b> Mindestabstand zwischen zwei Titeländerungen. Im Verlauf steht dann „Titel frühestens in … min“.</li>
+          <li>Auch ein neuer Abschnitt braucht die eingestellten Bestätigungen.</li>
+          <li>Steht „So entsteht der Titel“ auf „Titel nicht ändern“, bleibt er immer, wie er ist.</li>
+        </ul>
+      </details>
+
+      <details id="stimme"><summary>Stichwörter aus der Stimme kommen nicht im Titel an</summary>
+        <p>Die Stimme beeinflusst nur den <b>Titel</b>, nie die Spielerkennung. Prüfe unter Einstellungen → Stimme, ob das richtige Mikrofon gewählt ist und was unter „Zuletzt verstanden“ steht. Beim ersten Einschalten wird das Sprachmodell einmalig heruntergeladen (Fortschritt im Dock). Berücksichtigt wird, was du in den letzten drei Minuten gesagt hast – und nur, wenn gerade ein neuer Titel geschrieben wird. Mit „Vorlage verwenden“ landen die Stichwörter über den Platzhalter <code>{keywords}</code> im Titel.</p>
+      </details>
+
+      <details id="anbieter"><summary>Fehler vom KI-Anbieter, Ersatzmodell</summary>
+        <span class="msg">Fehler: … · Ersatzmodell …</span>
+        <p>Ist das Hauptmodell überlastet, hat es sein Limit erreicht oder antwortet nicht, springt das <b>Ersatzmodell</b> ein (Einstellungen → KI). Ein überlastetes Modell lässt TitleSync zehn Minuten lang aus. Ohne Ersatzmodell fällt die Prüfung dann aus.</p>
+        <ul>
+          <li>Bei NVIDIA die <a href="#nvidia">empfohlenen Modelle</a> verwenden – viele andere sind für Gratis-Konten gesperrt.</li>
+          <li>„Modelle laden“ prüft den Key gleich mit.</li>
+          <li>Bei Ollama: Läuft Ollama? Bei der ersten Prüfung nach dem Start lädt Ollama das Modell erst in den Grafikspeicher, das dauert länger.</li>
+          <li>Schlägt nur der KI-Titel fehl, nimmt TitleSync automatisch die Titelvorlage.</li>
+        </ul>
+      </details>
+
+      <details id="linux"><summary>Linux und Flatpak</summary>
+        <p>Linux-Versionen sind experimentell. Das Setup (AppImage) installiert TitleSync für OBS aus der Paketverwaltung und für OBS als Flatpak (<code>com.obsproject.Studio</code>) – OBS danach neu starten.</p>
+        <ul>
+          <li><b>Dock fehlt:</b> In <code>~/.config/obs-studio/logs</code> bzw. beim Flatpak in <code>~/.var/app/com.obsproject.Studio/config/obs-studio/logs</code> im neuesten Log nach „titlesync“ suchen. Steht dort „compiled with newer libobs“, ist dein OBS älter als die TitleSync-Version voraussetzt – OBS aktualisieren (mindestens 31.1).</li>
+          <li><b>Ollama im Flatpak:</b> Ollama läuft außerhalb des Flatpaks, ist aber über <code>http://localhost:11434</code> erreichbar. Installieren mit <code>curl -fsSL https://ollama.com/install.sh | sh</code> und <code>ollama pull qwen3-vl:4b-instruct</code>.</li>
+          <li><b>Zuordnungen und Video-Erkennung:</b> Unter Linux kennt TitleSync weder das Fenster im Vordergrund noch Programmnamen aus der Fensteraufnahme. Feste Zuordnungen und „Video im Vordergrund“ greifen dort deshalb bisher nicht – die KI erkennt das Spiel aber ganz normal am Bild.</li>
+        </ul>
+      </details>
+
+      <div class="card">
+        <p>Nichts davon passt? Schreib ein <a href="https://github.com/BellocccYT/titlesync/issues">Issue auf GitHub</a> und häng die Zeilen aus dem Verlauf sowie das OBS-Log an (Hilfe → Logdateien → Aktuelle Logdatei hochladen).</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>TitleSync von <a href="https://github.com/BellocccYT">Belloccc</a> · GPL-2.0-or-later</span>
+    <span>Nicht offiziell mit OBS Project, Twitch, YouTube oder den KI-Anbietern verbunden.</span>
+  </div>
+</footer>
+</body>
+</html>
