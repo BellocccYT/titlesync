@@ -8,6 +8,13 @@ on:
       - 'release/**'
     tags:
       - '*'
+  # Release ohne Tag-Push: baut den aktuellen Stand und legt Tag (Version aus buildspec.json) und Entwurf an
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Release mit der Version aus buildspec.json erstellen
+        type: boolean
+        default: true
 permissions:
   contents: write
 jobs:
@@ -21,44 +28,65 @@ jobs:
   build-project:
     name: Build Project 🧱
     uses: ./.github/workflows/build-project.yaml
+    with:
+      release: ${{ github.event_name == 'workflow_dispatch' && inputs.release }}
     secrets: inherit
     permissions:
       contents: read
 
   create-release:
     name: Create Release 🛫
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.release)
     runs-on: ubuntu-24.04
     needs: build-project
     defaults:
       run:
         shell: bash
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/release-notes
+
       - name: Check Release Tag ☑️
         id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           : Check Release Tag ☑️
           if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
           shopt -s extglob
 
-          case "${GITHUB_REF_NAME}" in
+          # Per Knopf gestartet: Version aus buildspec.json, der Tag entsteht mit dem Release
+          version="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_REF_TYPE}" != 'tag' ]]; then
+            version="$(jq -r '.version' buildspec.json)"
+            if git ls-remote --exit-code --tags origin "refs/tags/${version}" > /dev/null; then
+              echo "::error::Tag ${version} existiert schon – Version in buildspec.json erhöhen"
+              exit 1
+            fi
+          fi
+
+          # Beim Veröffentlichen eines per Knopf erstellten Entwurfs legt GitHub den Tag an –
+          # das Release gibt es dann schon und darf nicht neu gebaut oder überschrieben werden
+          if [[ "${GITHUB_REF_TYPE}" == 'tag' ]] && gh release view "${version}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "Release ${version} existiert schon – nichts zu tun"
+            echo 'validTag=false' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          case "${version}" in
             +([0-9]).+([0-9]).+([0-9]) )
               echo 'validTag=true' >> $GITHUB_OUTPUT
               echo 'prerelease=false' >> $GITHUB_OUTPUT
-              echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+              echo "version=${version}" >> $GITHUB_OUTPUT
               ;;
             +([0-9]).+([0-9]).+([0-9])-@(beta|rc)*([0-9]) )
               echo 'validTag=true' >> $GITHUB_OUTPUT
               echo 'prerelease=true' >> $GITHUB_OUTPUT
-              echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+              echo "version=${version}" >> $GITHUB_OUTPUT
               ;;
             *) echo 'validTag=false' >> $GITHUB_OUTPUT ;;
           esac
-
-      - uses: actions/checkout@v4
-        if: fromJSON(steps.check.outputs.validTag)
-        with:
-          sparse-checkout: .github/release-notes
 
       - name: Download Build Artifacts 📥
         uses: actions/download-artifact@v4
@@ -102,7 +130,7 @@ jobs:
 
           # Release-Text aus .github/release-notes/<version>.md, darunter die Prüfsummen
           : > ${{ github.workspace }}/CHECKSUMS.txt
-          notes="${{ github.workspace }}/.github/release-notes/${GITHUB_REF_NAME}.md"
+          notes="${{ github.workspace }}/.github/release-notes/${{ steps.check.outputs.version }}.md"
           if [[ -f "${notes}" ]]; then
             cat "${notes}" >> ${{ github.workspace }}/CHECKSUMS.txt
           fi
@@ -119,6 +147,7 @@ jobs:
           draft: true
           prerelease: ${{ fromJSON(steps.check.outputs.prerelease) }}
           tag_name: ${{ steps.check.outputs.version }}
+          target_commitish: ${{ github.sha }}
           name: ${{ needs.build-project.outputs.pluginName }} ${{ steps.check.outputs.version }}
           body_path: ${{ github.workspace }}/CHECKSUMS.txt
           files: |

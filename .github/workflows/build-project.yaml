@@ -1,6 +1,11 @@
 name: Build Project
 on:
   workflow_call:
+    inputs:
+      release:
+        description: Build like a release tag (packages, Release config)
+        type: boolean
+        default: false
     outputs:
       pluginName:
         description: Project name detected by parsing build spec file
@@ -49,6 +54,10 @@ jobs:
               ;;
             workflow_dispatch)
               config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo')
+              # Release per Knopf statt per Tag-Push: genauso bauen wie bei einem Tag
+              if [[ "${{ inputs.release }}" == 'true' ]]; then
+                config_data=('codesign:true' 'notarize:true' 'package:true' 'config:Release')
+              fi
               ;;
             schedule)
               config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo')
