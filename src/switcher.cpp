@@ -201,8 +201,10 @@ void Switcher::setStreaming(bool streaming)
 		if (streaming)
 			dueNow_ = true; // beim Go-Live sofort prüfen
 	}
-	if (streaming)
+	if (streaming) {
 		refreshChannel_ = true;
+		newStream_ = true;
+	}
 	wake_.notify_all();
 	emit statusChanged();
 }
@@ -451,8 +453,10 @@ void Switcher::pollTwitchLive()
 	}
 	if (!changed)
 		return;
-	if (live)
+	if (live) {
 		refreshChannel_ = true;
+		newStream_ = true;
+	}
 	addHistory(live ? QString(Tr("Status.LiveDetected")).arg(source) : QString(Tr("Status.StreamEnded")));
 	emit statusChanged();
 }
@@ -631,6 +635,11 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 		return;
 	}
 
+	if (newStream_.exchange(false)) {
+		titleSynced_ = false;
+		syncHits_ = 0;
+	}
+
 	if (!rule) {
 		// Bei „kein Spiel“ melden viele Modelle 0 % – die Mindestsicherheit gilt deshalb nur für erkannte Spiele
 		if (detection.isGame && percent < cfg.minConfidence) {
@@ -675,7 +684,9 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 		resetCandidate();
 		lastBlocked_.clear();
 		lastSkip_.clear();
-		if (haveDetection && sure)
+		if (!titleSynced_ && cfg.titleMode != TitleMode::Keep)
+			maybeSyncTitle(cfg, *category, detection, certain ? rule : nullptr, immediate);
+		else if (haveDetection && sure)
 			maybeProgressTitle(cfg, detection, rule);
 		return;
 	}
@@ -723,6 +734,7 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 		}
 	}
 
+	syncHits_ = 0; // anderes Spiel erkannt: Titel-Abgleich beginnt von vorn
 	if (category->name == candidate_) {
 		candidateHits_++;
 	} else {
@@ -850,6 +862,30 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 		return;
 	}
 
+	progressHits_ = 0;
+	progressWaitLogged_ = false;
+	titleActivity_ = detection.activity;
+	retitle(cfg, detection.scene, rule, Tr("Status.TitleAdjustedNewSection"));
+}
+
+// Kategorie stimmt schon, aber in diesem Stream steht noch ein alter Titel – nach den Bestätigungen erneuern
+void Switcher::maybeSyncTitle(const Settings &cfg, const Category &category, const Detection &detection,
+			      const GameRule *rule, bool immediate)
+{
+	syncHits_++;
+	const int needed = (immediate || rule) ? 1 : cfg.confirmations;
+	if (syncHits_ < needed) {
+		addHistory(QString(Tr("Status.TitleSyncQueued")).arg(qstr(category.name)).arg(syncHits_).arg(needed));
+		return;
+	}
+	syncHits_ = 0;
+	titleActivity_ = detection.activity;
+	retitle(cfg, detection.isGame ? detection.scene : std::string(), rule, Tr("Status.TitleRenewed"));
+}
+
+void Switcher::retitle(const Settings &cfg, const std::string &scene, const GameRule *rule,
+		       const QString &historyPrefix)
+{
 	ChannelInfo channel;
 	if (twitch_.connected()) {
 		channel = twitch_.getChannel();
@@ -860,14 +896,12 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 	}
 	const std::vector<std::string> keywords = speechKeywords(cfg, channel.gameName);
 	const std::string core = rule && !qstr(rule->title).trimmed().isEmpty()
-					 ? fillTemplate(rule->title, channel.gameName, detection.scene, keywords)
-					 : makeTitleCore(cfg, channel.gameName, detection.scene, keywords);
+					 ? fillTemplate(rule->title, channel.gameName, scene, keywords)
+					 : makeTitleCore(cfg, channel.gameName, scene, keywords);
 	const std::string title = core.empty() ? std::string() : composeTitle(cfg, core);
-	progressHits_ = 0;
-	progressWaitLogged_ = false;
-	titleScene_ = detection.scene;
-	titleActivity_ = detection.activity;
-	lastTitleChange_ = now;
+	titleScene_ = scene;
+	titleSynced_ = true;
+	lastTitleChange_ = std::chrono::steady_clock::now();
 	if (title.empty() || title == channel.title)
 		return;
 	if (twitch_.connected())
@@ -878,7 +912,7 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 		title_ = qstr(title);
 	}
 	emit statusChanged();
-	addHistory(Tr("Status.TitleAdjustedNewSection") + qstr(title));
+	addHistory(historyPrefix + qstr(title));
 }
 
 void Switcher::applyManual(const Settings &cfg, const std::string &name)
@@ -1026,6 +1060,8 @@ void Switcher::apply(const Settings &cfg, const Category &category, const std::s
 	knownCategory_ = category.name;
 	titleScene_ = scene;
 	titleActivity_.clear(); // nächste Erkennung setzt den Ausgangspunkt
+	titleSynced_ = true;
+	syncHits_ = 0;
 	progressHits_ = 0;
 	progressWaitLogged_ = false;
 	lastTitleChange_ = std::chrono::steady_clock::now();

@@ -115,6 +115,9 @@ private:
 	void apply(const Settings &cfg, const Category &category, const std::string &scene,
 		   const std::vector<std::string> &keywords, const GameRule *rule);
 	void maybeProgressTitle(const Settings &cfg, const Detection &detection, const GameRule *rule);
+	void maybeSyncTitle(const Settings &cfg, const Category &category, const Detection &detection,
+			    const GameRule *rule, bool immediate);
+	void retitle(const Settings &cfg, const std::string &scene, const GameRule *rule, const QString &historyPrefix);
 	// Kern des Titels (ohne feste Teile); composeTitle macht daraus den Titel für die jeweilige Plattform
 	std::string makeTitleCore(const Settings &cfg, const std::string &game, const std::string &scene,
 				  const std::vector<std::string> &keywords);
@@ -181,12 +184,15 @@ private:
 	std::string titleScene_;    // Situation, zu der der aktuelle Titel passt
 	std::string titleActivity_; // Aktivität beim letzten Titel (Bosskampf, Erkunden …)
 	int progressHits_ = 0;
+	bool titleSynced_ = false; // in diesem Stream schon einen Titel geschrieben
+	int syncHits_ = 0;
 	bool progressWaitLogged_ = false;
 	std::optional<std::chrono::steady_clock::time_point> lastTitleChange_;
 	// Steam-Abgleich je erkanntem Namen: Ergebnis (leer = abgelehnt) und Ablaufzeit
 	std::map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> verdicts_;
 
 	std::atomic<bool> refreshChannel_{true};
+	std::atomic<bool> newStream_{false}; // Stream gestartet – Titel muss neu abgeglichen werden
 	std::atomic<bool> loginRunning_{false};
 	std::atomic<bool> cancelLogin_{false};
 	std::atomic<bool> youtubeLoginRunning_{false};
