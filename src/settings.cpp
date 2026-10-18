@@ -50,8 +50,8 @@ const ProviderInfo kProviders[kProviderCount] = {
 	{"groq", "Provider.Groq", "https://api.groq.com/openai/v1", "", "", true, "Provider.Groq.Help"},
 	{"mistral", "Provider.Mistral", "https://api.mistral.ai/v1", "mistral-small-latest", "", true,
 	 "Provider.Mistral.Help"},
-	{"nvidia", "Provider.Nvidia", "https://integrate.api.nvidia.com/v1",
-	 "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "", true, "Provider.Nvidia.Help"},
+	{"nvidia", "Provider.Nvidia", "https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3.5-super-vl-120b-a12b",
+	 "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", true, "Provider.Nvidia.Help"},
 	{"cloudflare", "Provider.Cloudflare", "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID/ai/v1",
 	 "@cf/meta/llama-4-scout-17b-16e-instruct", "@cf/google/gemma-3-12b-it", true, "Provider.Cloudflare.Help"},
 };

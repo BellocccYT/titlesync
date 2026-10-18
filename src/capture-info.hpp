@@ -39,6 +39,13 @@ std::vector<CapturedApp> activeCapturedApps();
 // Bekannte Emulatoren – ein Programm, viele Spiele; unterschieden wird am Fenstertitel
 bool isEmulator(const std::string &executable);
 
+struct ForegroundWindow;
+
+// Läuft im Vordergrund ein Video (YouTube & Co. im Browser oder ein Videoplayer) und nimmt OBS weder ein
+// Spiel noch eine Capture-Card auf, liefert das den Fenstertitel – sonst leer. Ein Video von einem Spiel
+// sieht für die KI aus wie das Spiel selbst.
+std::string videoInForeground(const std::vector<CapturedApp> &apps, const ForegroundWindow &foreground);
+
 // Rät aus dem Fenstertitel eines Emulators den Spielnamen, z. B.
 // „Dolphin 2412 | JIT64 | Direct3D 11 | Super Mario Sunshine (GMSE01)“ → „Super Mario Sunshine“
 std::string gameFromWindowTitle(const std::string &title);

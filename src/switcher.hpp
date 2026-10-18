@@ -117,7 +117,7 @@ private:
 	void maybeProgressTitle(const Settings &cfg, const Detection &detection, const GameRule *rule);
 	// Kern des Titels (ohne feste Teile); composeTitle macht daraus den Titel für die jeweilige Plattform
 	std::string makeTitleCore(const Settings &cfg, const std::string &game, const std::string &scene,
-				  const std::vector<std::string> &keywords, const std::string &previousTitle);
+				  const std::vector<std::string> &keywords);
 	std::vector<std::string> speechKeywords(const Settings &cfg, const std::string &game);
 	// Ergebnis des Steam-Abgleichs: Name der Kategorie, auf die umgestellt werden darf; leer = abgelehnt
 	std::optional<std::string> verifyWithSteam(const Settings &cfg, const EncodedImage &image,
@@ -135,6 +135,8 @@ private:
 	void setNotice(const QString &text, bool toHistory);
 	void setBusy(bool busy);
 	void resetCandidate();
+	// Erklärt im Verlauf, warum nichts umgestellt wurde – jeder Grund nur einmal, bei „Jetzt prüfen“ immer
+	void explainSkip(const std::string &key, const QString &text, bool always);
 
 	mutable std::mutex mutex_;
 	std::condition_variable wake_;
@@ -174,6 +176,7 @@ private:
 	QString lastDetectionLabel_;
 	std::string lastScene_;     // zuletzt angezeigte Situation (für den Verlauf)
 	std::string lastBlocked_;   // zuletzt gemeldete gesperrte Kategorie
+	std::string lastSkip_;      // zuletzt erklärter Grund, warum nicht umgestellt wurde
 	std::string recentSpeech_;  // was in den letzten Minuten gesagt wurde (für Stichwörter)
 	std::string titleScene_;    // Situation, zu der der aktuelle Titel passt
 	std::string titleActivity_; // Aktivität beim letzten Titel (Bosskampf, Erkunden …)

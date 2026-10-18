@@ -123,6 +123,7 @@ SettingsDialog::SettingsDialog(Switcher *switcher, QWidget *parent)
 	setMinimumWidth(680);
 
 	auto *tabs = new QTabWidget;
+	tabs_ = tabs;
 	tabs->addTab(createAiTab(), Tr("Settings.AI"));
 	tabs->addTab(createTwitchTab(), "Twitch");
 	tabs->addTab(createYouTubeTab(), "YouTube");
@@ -146,6 +147,8 @@ SettingsDialog::SettingsDialog(Switcher *switcher, QWidget *parent)
 	auto *bottom = new QHBoxLayout;
 	bottom->addWidget(new QLabel(Tr("Settings.UiLanguage")));
 	bottom->addWidget(uiLanguage_);
+	bottom->addSpacing(12);
+	bottom->addWidget(hint(Tr("Settings.HelpLink")));
 	bottom->addStretch();
 	bottom->addWidget(buttons);
 
@@ -409,6 +412,7 @@ QWidget *SettingsDialog::createTitleTab()
 	progressLevel_->addItem(Tr("Settings.RarelyOnlyBigSectionsNew"), QStringLiteral("big"));
 	progressLevel_->addItem(Tr("Settings.NormalAlsoNewAreasRounds"), QStringLiteral("normal"));
 	progressLevel_->addItem(Tr("Settings.OftenOnEveryClearlyDifferent"), QStringLiteral("often"));
+	progressLevel_->addItem(Tr("Settings.EveryCheck"), QStringLiteral("every"));
 	progressLevel_->setCurrentIndex(std::max(0, progressLevel_->findData(qstr(settings_.progressLevel))));
 	progressForm->addRow(Tr("Settings.HowOften"), progressLevel_);
 	progressMinutes_ = new QSpinBox;
@@ -426,11 +430,14 @@ QWidget *SettingsDialog::createTitleTab()
 		titleStyle_->setEnabled(mode == TitleMode::Ai);
 		titleTemplate_->setEnabled(mode != TitleMode::Keep);
 		progressTitles_->setEnabled(mode != TitleMode::Keep);
-		progressMinutes_->setEnabled(mode != TitleMode::Keep && progressTitles_->isChecked());
+		// „Bei jeder Prüfung“ richtet sich nach dem Prüfintervall, nicht nach der Mindestpause
+		progressMinutes_->setEnabled(mode != TitleMode::Keep && progressTitles_->isChecked() &&
+					     progressLevel_->currentData().toString() != QLatin1String("every"));
 		progressLevel_->setEnabled(mode != TitleMode::Keep && progressTitles_->isChecked());
 		updateTitlePreview();
 	};
 	connect(titleMode_, &QComboBox::currentIndexChanged, this, updateEnabled);
+	connect(progressLevel_, &QComboBox::currentIndexChanged, this, updateEnabled);
 	connect(progressTitles_, &QCheckBox::toggled, this, updateEnabled);
 	connect(titleTemplate_, &QLineEdit::textChanged, this, &SettingsDialog::updateTitlePreview);
 	connect(titleEmojis_, &QCheckBox::toggled, this, &SettingsDialog::updateTitlePreview);
@@ -587,80 +594,216 @@ void SettingsDialog::refreshVoice()
 QWidget *SettingsDialog::createRulesTab()
 {
 	auto *page = new QWidget;
+	rulesPage_ = page;
 	auto *layout = new QVBoxLayout(page);
-	layout->addWidget(hint(Tr("Settings.IfOBSCapturesOneOf")));
+	layout->addWidget(hint(Tr("Settings.RulesIntro")));
 
-	rules_ = new QTableWidget(0, 5);
-	rules_->setHorizontalHeaderLabels({Tr("Settings.ApplicationExe"), Tr("Settings.WindowTitleContains"),
-					   Tr("Settings.TwitchCategory"), Tr("Settings.OwnTitle"), "Tags"});
-	rules_->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
-	rules_->horizontalHeader()->setStretchLastSection(true);
-	rules_->setColumnWidth(0, 120);
-	rules_->setColumnWidth(1, 130);
-	rules_->setColumnWidth(2, 140);
-	rules_->setColumnWidth(3, 160);
-	rules_->verticalHeader()->setVisible(false);
-	rules_->setSelectionBehavior(QAbstractItemView::SelectRows);
-	rules_->horizontalHeaderItem(1)->setToolTip(Tr("Settings.EmptyAppliesToEveryWindow"));
-	rules_->horizontalHeaderItem(3)->setToolTip(Tr("Settings.EmptyTitleAsSetUnder"));
-	rules_->horizontalHeaderItem(4)->setToolTip(Tr("Settings.TwitchTagsForThisGame"));
+	auto makeTable = [](const QStringList &headers) {
+		auto *table = new QTableWidget(0, static_cast<int>(headers.size()));
+		table->setHorizontalHeaderLabels(headers);
+		table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+		table->horizontalHeader()->setStretchLastSection(true);
+		table->verticalHeader()->setVisible(false);
+		table->setSelectionBehavior(QAbstractItemView::SelectRows);
+		return table;
+	};
+
+	// -- Spiele: ein Programm, ein Spiel
+	auto *games = new QGroupBox(Tr("Settings.RulesGames"));
+	auto *gamesLayout = new QVBoxLayout(games);
+	gamesLayout->addWidget(hint(Tr("Settings.RulesGamesHint")));
+	gameRules_ = makeTable(
+		{Tr("Settings.ApplicationExe"), Tr("Settings.TwitchCategory"), Tr("Settings.OwnTitle"), "Tags"});
+	gameRules_->setColumnWidth(0, 150);
+	gameRules_->setColumnWidth(1, 170);
+	gameRules_->setColumnWidth(2, 170);
+	gameRules_->horizontalHeaderItem(2)->setToolTip(Tr("Settings.EmptyTitleAsSetUnder"));
+	gameRules_->horizontalHeaderItem(3)->setToolTip(Tr("Settings.TwitchTagsForThisGame"));
+	gamesLayout->addWidget(gameRules_, 1);
+	layout->addWidget(games, 1);
+
+	// -- Emulatoren: ein Programm, viele Spiele – unterschieden am Fenstertitel
+	auto *emulators = new QGroupBox(Tr("Settings.RulesEmulators"));
+	auto *emulatorsLayout = new QVBoxLayout(emulators);
+	emulatorsLayout->addWidget(hint(Tr("Settings.RulesEmulatorsHint")));
+	emulatorRules_ = makeTable({Tr("Settings.Emulator"), Tr("Settings.WindowTitleContains"),
+				    Tr("Settings.TwitchCategory"), Tr("Settings.OwnTitle"), "Tags"});
+	emulatorRules_->setColumnWidth(0, 120);
+	emulatorRules_->setColumnWidth(1, 140);
+	emulatorRules_->setColumnWidth(2, 150);
+	emulatorRules_->setColumnWidth(3, 150);
+	emulatorRules_->horizontalHeaderItem(1)->setToolTip(Tr("Settings.EmptyAppliesToEveryWindow"));
+	emulatorRules_->horizontalHeaderItem(3)->setToolTip(Tr("Settings.EmptyTitleAsSetUnder"));
+	emulatorRules_->horizontalHeaderItem(4)->setToolTip(Tr("Settings.TwitchTagsForThisGame"));
+	emulatorsLayout->addWidget(emulatorRules_, 1);
+	layout->addWidget(emulators, 1);
+
 	for (const GameRule &rule : settings_.rules)
 		addRule(rule);
-	layout->addWidget(rules_, 1);
 
 	auto *buttons = new QHBoxLayout;
-	auto *add = new QPushButton(Tr("Settings.Add"));
+	auto *addGame = new QPushButton(Tr("Settings.AddGame"));
+	auto *addEmulator = new QPushButton(Tr("Settings.AddEmulator"));
 	auto *fromCapture = new QPushButton(Tr("Settings.AddCurrentCaptures"));
 	fromCapture->setToolTip(Tr("Settings.AddsApplicationsOBSIsCurrently"));
 	auto *remove = new QPushButton(Tr("Settings.Remove"));
-	buttons->addWidget(add);
+	remove->setToolTip(Tr("Settings.RemoveSelectedRule"));
 	buttons->addWidget(fromCapture);
+	buttons->addWidget(addGame);
+	buttons->addWidget(addEmulator);
 	buttons->addStretch(1);
 	buttons->addWidget(remove);
 	layout->addLayout(buttons);
 
-	connect(add, &QPushButton::clicked, this, [this] {
+	connect(addGame, &QPushButton::clicked, this, [this] {
 		addRule({});
-		rules_->editItem(rules_->item(rules_->rowCount() - 1, 0));
+		gameRules_->setCurrentCell(gameRules_->rowCount() - 1, 0);
+		gameRules_->editItem(gameRules_->item(gameRules_->rowCount() - 1, 0));
+	});
+	connect(addEmulator, &QPushButton::clicked, this, [this] {
+		const int row = emulatorRules_->rowCount();
+		emulatorRules_->insertRow(row);
+		for (int column = 0; column < emulatorRules_->columnCount(); column++)
+			emulatorRules_->setItem(row, column, new QTableWidgetItem);
+		emulatorRules_->setCurrentCell(row, 0);
+		emulatorRules_->editItem(emulatorRules_->item(row, 0));
 	});
 	connect(fromCapture, &QPushButton::clicked, this, [this] {
-		for (const CapturedApp &app : activeCapturedApps()) {
+		const std::vector<CapturedApp> apps = activeCapturedApps();
+		if (apps.empty()) {
+			QMessageBox::information(this, windowTitle(), Tr("Settings.RulesNothingCaptured"));
+			return;
+		}
+		// Läuft gerade ein Spiel, kennt das Plugin die passende Kategorie meist schon
+		const StatusSnapshot status = switcher_->status();
+		const QString current = status.category.trimmed();
+		const bool useCurrent = !current.isEmpty() && current.compare(qstr(settings_.idleCategory).trimmed(),
+									      Qt::CaseInsensitive) != 0;
+		auto same = [](QTableWidget *table, int row, int column, const std::string &value) {
+			return table->item(row, column) &&
+			       table->item(row, column)->text().trimmed().compare(qstr(value), Qt::CaseInsensitive) ==
+				       0;
+		};
+		QTableWidget *firstEmpty = nullptr;
+		int firstEmptyRow = -1;
+		for (const CapturedApp &app : apps) {
 			GameRule rule;
 			rule.executable = app.executable;
 			if (isEmulator(app.executable)) {
 				rule.windowTitle = gameFromWindowTitle(app.title);
 				rule.category = rule.windowTitle;
+			} else if (useCurrent) {
+				rule.category = current.toStdString();
 			}
+			QTableWidget *table = rule.windowTitle.empty() ? gameRules_ : emulatorRules_;
 			bool exists = false;
-			for (int row = 0; row < rules_->rowCount(); row++) {
-				auto same = [&](int column, const std::string &value) {
-					return rules_->item(row, column) &&
-					       rules_->item(row, column)
-							       ->text()
-							       .trimmed()
-							       .compare(qstr(value), Qt::CaseInsensitive) == 0;
-				};
-				exists = exists || (same(0, rule.executable) && same(1, rule.windowTitle));
+			for (int row = 0; row < table->rowCount(); row++) {
+				exists = exists ||
+					 (rule.windowTitle.empty() ? same(table, row, 0, rule.executable)
+								   : same(table, row, 0, rule.executable) &&
+									     same(table, row, 1, rule.windowTitle));
 			}
-			if (!exists)
-				addRule(rule);
+			if (exists)
+				continue;
+			addRule(rule);
+			if (!firstEmpty && rule.category.empty()) {
+				firstEmpty = table;
+				firstEmptyRow = table->rowCount() - 1;
+			}
+		}
+		// Fehlt die Kategorie, gleich das Feld zum Eintippen öffnen
+		if (firstEmpty) {
+			const int column = firstEmpty == gameRules_ ? 1 : 2;
+			firstEmpty->setCurrentCell(firstEmptyRow, column);
+			firstEmpty->editItem(firstEmpty->item(firstEmptyRow, column));
 		}
 	});
 	connect(remove, &QPushButton::clicked, this, [this] {
-		const int row = rules_->currentRow();
-		if (row >= 0)
-			rules_->removeRow(row);
+		for (QTableWidget *table : {gameRules_, emulatorRules_}) {
+			if (table->hasFocus() || !table->selectedItems().isEmpty()) {
+				const int row = table->currentRow();
+				if (row >= 0) {
+					table->removeRow(row);
+					return;
+				}
+			}
+		}
 	});
 	return page;
 }
 
 void SettingsDialog::addRule(const GameRule &rule)
 {
-	const int row = rules_->rowCount();
-	rules_->insertRow(row);
-	const std::string values[] = {rule.executable, rule.windowTitle, rule.category, rule.title, rule.tags};
-	for (int column = 0; column < 5; column++)
-		rules_->setItem(row, column, new QTableWidgetItem(qstr(values[column])));
+	const bool emulator = !qstr(rule.windowTitle).trimmed().isEmpty();
+	QTableWidget *table = emulator ? emulatorRules_ : gameRules_;
+	const std::vector<std::string> values =
+		emulator ? std::vector<std::string>{rule.executable, rule.windowTitle, rule.category, rule.title,
+						    rule.tags}
+			 : std::vector<std::string>{rule.executable, rule.category, rule.title, rule.tags};
+	const int row = table->rowCount();
+	table->insertRow(row);
+	for (int column = 0; column < static_cast<int>(values.size()); column++)
+		table->setItem(row, column, new QTableWidgetItem(qstr(values[column])));
+}
+
+std::vector<GameRule> SettingsDialog::collectRules(QStringList &problems) const
+{
+	auto cell = [](const QTableWidget *table, int row, int column) {
+		return table->item(row, column) ? table->item(row, column)->text().trimmed().toStdString()
+						: std::string();
+	};
+	auto checkProgram = [](const std::string &executable, QStringList &missing) {
+		if (executable.empty()) {
+			missing << Tr("Settings.RulesMissingProgram");
+			return;
+		}
+#ifdef _WIN32
+		// Ohne „.exe“ ist es fast immer der Spielname statt des Programms – das passt nie
+		if (!qstr(executable).endsWith(QLatin1String(".exe"), Qt::CaseInsensitive))
+			missing << QString(Tr("Settings.RulesNotExe")).arg(qstr(executable));
+#endif
+	};
+
+	std::vector<GameRule> rules;
+	for (int row = 0; row < gameRules_->rowCount(); row++) {
+		GameRule rule;
+		rule.executable = cell(gameRules_, row, 0);
+		rule.category = cell(gameRules_, row, 1);
+		rule.title = cell(gameRules_, row, 2);
+		rule.tags = cell(gameRules_, row, 3);
+		if (rule.executable.empty() && rule.category.empty() && rule.title.empty() && rule.tags.empty())
+			continue; // leere Zeile
+		QStringList missing;
+		checkProgram(rule.executable, missing);
+		if (rule.category.empty())
+			missing << Tr("Settings.RulesMissingCategory");
+		if (!missing.isEmpty())
+			problems << QString(Tr("Settings.RulesGameRow")).arg(row + 1).arg(missing.join(" · "));
+		else
+			rules.push_back(rule);
+	}
+	for (int row = 0; row < emulatorRules_->rowCount(); row++) {
+		GameRule rule;
+		rule.executable = cell(emulatorRules_, row, 0);
+		rule.windowTitle = cell(emulatorRules_, row, 1);
+		rule.category = cell(emulatorRules_, row, 2);
+		rule.title = cell(emulatorRules_, row, 3);
+		rule.tags = cell(emulatorRules_, row, 4);
+		if (rule.executable.empty() && rule.windowTitle.empty() && rule.category.empty() &&
+		    rule.title.empty() && rule.tags.empty())
+			continue;
+		QStringList missing;
+		checkProgram(rule.executable, missing);
+		if (rule.windowTitle.empty())
+			missing << Tr("Settings.RulesMissingWindowTitle");
+		if (rule.category.empty())
+			missing << Tr("Settings.RulesMissingCategory");
+		if (!missing.isEmpty())
+			problems << QString(Tr("Settings.RulesEmulatorRow")).arg(row + 1).arg(missing.join(" · "));
+		else
+			rules.push_back(rule);
+	}
+	return rules;
 }
 
 void SettingsDialog::showProvider(int index)
@@ -806,20 +949,15 @@ void SettingsDialog::save()
 	settings_.voiceSource = voiceSource_->currentData().toString().toStdString();
 	settings_.voiceModel = voiceModel_->currentData().toString().toStdString();
 
-	settings_.rules.clear();
-	auto cell = [this](int row, int column) {
-		return rules_->item(row, column) ? rules_->item(row, column)->text().trimmed().toStdString()
-						 : std::string();
-	};
-	for (int row = 0; row < rules_->rowCount(); row++) {
-		GameRule rule;
-		rule.executable = cell(row, 0);
-		rule.windowTitle = cell(row, 1);
-		rule.category = cell(row, 2);
-		rule.title = cell(row, 3);
-		rule.tags = cell(row, 4);
-		if (!rule.executable.empty() && !rule.category.empty())
-			settings_.rules.push_back(rule);
+	// Unvollständige Zuordnungen nicht stillschweigend verwerfen, sondern sagen, was fehlt
+	QStringList problems;
+	settings_.rules = collectRules(problems);
+	if (!problems.isEmpty()) {
+		tabs_->setCurrentWidget(rulesPage_);
+		QMessageBox::warning(this, windowTitle(),
+				     Tr("Settings.RulesInvalidIntro") + QStringLiteral("\n\n• ") +
+					     problems.join(QStringLiteral("\n• ")));
+		return;
 	}
 
 	const ProviderInfo &info = providerInfo(settings_.provider);

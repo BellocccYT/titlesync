@@ -22,6 +22,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <QDialog>
 #include <QPointer>
+#include <QStringList>
 
 #include <string>
 #include <vector>
@@ -33,6 +34,7 @@ class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
 class QSpinBox;
+class QTabWidget;
 class QTableWidget;
 
 namespace kgs {
@@ -59,7 +61,10 @@ private:
 	QWidget *createRulesTab();
 	void updateTitlePreview();
 	void refreshVoice();
+	// Zeilen mit Fenstertitel landen bei den Emulatoren, alle anderen bei den Spielen
 	void addRule(const GameRule &rule);
+	// Liest beide Tabellen; unvollständige Zeilen landen mit Erklärung in problems
+	std::vector<GameRule> collectRules(QStringList &problems) const;
 
 	void showProvider(int index);
 	void storeProvider(int index);
@@ -119,7 +124,10 @@ private:
 	QLabel *voiceStatus_;
 	QLabel *voiceText_;
 
-	QTableWidget *rules_;
+	QTabWidget *tabs_;
+	QWidget *rulesPage_;
+	QTableWidget *gameRules_;     // Programm → Kategorie
+	QTableWidget *emulatorRules_; // Programm + Fenstertitel → Kategorie
 
 	QLineEdit *youtubeClientId_;
 	QLineEdit *youtubeClientSecret_;

@@ -139,7 +139,14 @@ SwitcherDock::SwitcherDock(Switcher *switcher, QWidget *parent) : QWidget(parent
 	buttons->addWidget(correctButton_, 2, 0, 1, 2);
 	layout->addLayout(buttons);
 
-	layout->addWidget(new QLabel(Tr("Dock.History")));
+	auto *historyRow = new QHBoxLayout;
+	historyRow->addWidget(new QLabel(Tr("Dock.History")));
+	historyRow->addStretch(1);
+	auto *help = new QLabel(Tr("Dock.Help"));
+	help->setTextFormat(Qt::RichText);
+	help->setOpenExternalLinks(true);
+	historyRow->addWidget(help);
+	layout->addLayout(historyRow);
 	history_ = new QListWidget;
 	history_->setWordWrap(true);
 	history_->setMinimumHeight(80);

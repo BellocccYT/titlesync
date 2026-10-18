@@ -191,6 +191,27 @@ ${_usage_host:-}"
   pushd ${portable_root}
   XZ_OPT=-T0 tar -cJf ${project_root}/release/${product_name}-${product_version}-x86_64-linux-portable.tar.xz     install.sh LICENSE ${product_name}
   popd
+
+  # Setup als AppImage: Doppelklick startet install.sh, Fenster über zenity/kdialog
+  log_group "Creating AppImage setup for ${product_name}..."
+  local appdir=${project_root}/release/AppDir
+  local appimagetool=${project_root}/release/appimagetool
+  rm -rf ${appdir}
+  mkdir -p ${appdir}
+  cp -R ${plugin_dir} ${appdir}/
+  cp ${project_root}/installer/linux/install.sh ${appdir}/AppRun
+  chmod 755 ${appdir}/AppRun
+  cp ${project_root}/docs/logo.png ${appdir}/${product_name}.png
+  print -r -l -- '[Desktop Entry]' 'Type=Application' 'Name=TitleSync Setup' \
+    'Comment=Installs the TitleSync plugin for OBS Studio' 'Exec=titlesync-setup' "Icon=${product_name}" \
+    'Categories=Utility;' 'Terminal=false' > ${appdir}/${product_name}.desktop
+
+  curl -fsSL -o ${appimagetool} \
+    https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+  chmod 755 ${appimagetool}
+  ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ${appimagetool} ${appdir} \
+    ${project_root}/release/${product_name}-${product_version}-x86_64-linux-setup.AppImage
+  rm -f ${appimagetool}
   log_group
 }
 

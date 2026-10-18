@@ -344,6 +344,14 @@ void Switcher::resetCandidate()
 	candidateHits_ = 0;
 }
 
+void Switcher::explainSkip(const std::string &key, const QString &text, bool always)
+{
+	if (!always && key == lastSkip_)
+		return;
+	lastSkip_ = key;
+	addHistory(text);
+}
+
 void Switcher::runInBackground(std::function<void()> task)
 {
 	std::lock_guard lock(helpersMutex_);
@@ -477,6 +485,8 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 	const std::vector<CapturedApp> apps = activeCapturedApps();
 	const ForegroundWindow foreground = foregroundWindow();
 	const GameRule *rule = matchRule(cfg, apps, foreground);
+	// Ein Video von einem Spiel sieht für die KI aus wie das Spiel – läuft eins im Vordergrund, ist es kein Spiel
+	const std::string video = rule ? std::string() : videoInForeground(apps, foreground);
 	// Für Fortschritts-Titel braucht es die KI auch bei festen Zuordnungen (sie beschreibt die Situation)
 	const bool wantScene = cfg.progressTitles && cfg.titleMode != TitleMode::Keep;
 
@@ -511,11 +521,18 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 	bool haveDetection = false;
 	EncodedImage image;
 	QString details;
-	if (haveFrame && (!rule || wantScene)) {
+	if (!video.empty()) {
+		detection.isGame = false;
+		detection.confidence = 1.0;
+		detection.reason = QString(Tr("Status.VideoInForeground")).arg(qstr(video)).toStdString();
+		details = " · " + qstr(detection.reason);
+		haveDetection = true;
+	} else if (haveFrame && (!rule || wantScene)) {
 		image = encodeImage(frame);
 		DetectContext context;
 		context.appHint = cfg.sendWindowHint ? appHint(apps, foreground) : std::string();
 		context.previousGame = knownCategory_.value_or(std::string());
+		context.speech = speech;
 		context.language = titleLanguageName(cfg);
 		const auto started = std::chrono::steady_clock::now();
 		try {
@@ -601,13 +618,35 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 		// Im Test zeigen, was der Steam-Abgleich sagen würde
 		if (!rule && haveDetection && detection.isGame && cfg.verifyWithDatabase)
 			verifyWithSteam(cfg, image, detection);
+		// … und was ohne Test passieren würde
+		if (!rule && haveDetection && detection.isGame && percent < cfg.minConfidence)
+			addHistory(QString(Tr("Status.BelowMinConfidence"))
+					   .arg(qstr(detection.category))
+					   .arg(percent)
+					   .arg(cfg.minConfidence));
+		else if (!rule && haveDetection && !detection.isGame)
+			addHistory(qstr(cfg.idleCategory).trimmed().isEmpty()
+					   ? QString(Tr("Status.NoGameNoIdleCategory"))
+					   : QString(Tr("Status.TestWouldSwitchIdle")).arg(qstr(cfg.idleCategory)));
 		return;
 	}
 
 	if (!rule) {
-		if (percent < cfg.minConfidence) {
+		// Bei „kein Spiel“ melden viele Modelle 0 % – die Mindestsicherheit gilt deshalb nur für erkannte Spiele
+		if (detection.isGame && percent < cfg.minConfidence) {
+			explainSkip("low:" + lowerKey(detection.category),
+				    QString(Tr("Status.BelowMinConfidence"))
+					    .arg(qstr(detection.category))
+					    .arg(percent)
+					    .arg(cfg.minConfidence),
+				    immediate);
 			resetCandidate();
 			progressHits_ = 0;
+			return;
+		}
+		if (!detection.isGame && qstr(cfg.idleCategory).trimmed().isEmpty()) {
+			explainSkip("noidle", Tr("Status.NoGameNoIdleCategory"), immediate);
+			resetCandidate();
 			return;
 		}
 		target = detection.isGame ? detection.category : cfg.idleCategory;
@@ -635,6 +674,7 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 			addHistory(QString(Tr("Status.CategoryAlready")).arg(qstr(category->name)));
 		resetCandidate();
 		lastBlocked_.clear();
+		lastSkip_.clear();
 		if (haveDetection && sure)
 			maybeProgressTitle(cfg, detection, rule);
 		return;
@@ -642,8 +682,15 @@ void Switcher::check(const Settings &cfg, bool dryRun, bool immediate)
 
 	// Nach einer manuellen Korrektur überschreibt die KI sie eine Weile nicht (Zuordnungen schon)
 	if (!immediate && !certain) {
-		std::lock_guard lock(mutex_);
-		if (holdUntil_ && std::chrono::steady_clock::now() < *holdUntil_) {
+		std::optional<std::chrono::steady_clock::time_point> holdUntil;
+		{
+			std::lock_guard lock(mutex_);
+			holdUntil = holdUntil_;
+		}
+		const auto now = std::chrono::steady_clock::now();
+		if (holdUntil && now < *holdUntil) {
+			const auto left = std::chrono::duration_cast<std::chrono::minutes>(*holdUntil - now);
+			explainSkip("hold", QString(Tr("Status.HoldAfterCorrection")).arg(left.count() + 1), false);
 			resetCandidate();
 			return;
 		}
@@ -771,14 +818,17 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 		titleActivity_ = detection.activity;
 		return;
 	}
-	if (!isNewSection(cfg.progressLevel, titleActivity_, detection.activity)) {
+	// „Bei jeder Prüfung“: jede neue Situation bekommt sofort einen neuen Titel
+	const bool everyCheck = cfg.progressLevel == "every";
+	if (everyCheck ? detection.scene == titleScene_
+		       : !isNewSection(cfg.progressLevel, titleActivity_, detection.activity)) {
 		progressHits_ = 0;
 		progressWaitLogged_ = false;
 		return;
 	}
 	progressHits_++;
 	// „Häufig“ reagiert sofort, sonst wie beim Spielwechsel erst nach Bestätigungen
-	const int needed = cfg.progressLevel == "often" ? 1 : cfg.confirmations;
+	const int needed = (everyCheck || cfg.progressLevel == "often") ? 1 : cfg.confirmations;
 	if (progressHits_ < needed) {
 		addHistory(QString(Tr("Status.NewSection1Queued2"))
 				   .arg(qstr(detection.scene))
@@ -787,7 +837,7 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 		return;
 	}
 	const auto now = std::chrono::steady_clock::now();
-	const auto minimum = std::chrono::minutes(cfg.progressMinutes);
+	const auto minimum = std::chrono::minutes(everyCheck ? 0 : cfg.progressMinutes);
 	if (lastTitleChange_ && now - *lastTitleChange_ < minimum) {
 		if (!progressWaitLogged_) {
 			const auto left =
@@ -809,10 +859,9 @@ void Switcher::maybeProgressTitle(const Settings &cfg, const Detection &detectio
 		channel.title = title_.toStdString();
 	}
 	const std::vector<std::string> keywords = speechKeywords(cfg, channel.gameName);
-	const std::string core =
-		rule && !qstr(rule->title).trimmed().isEmpty()
-			? fillTemplate(rule->title, channel.gameName, detection.scene, keywords)
-			: makeTitleCore(cfg, channel.gameName, detection.scene, keywords, channel.title);
+	const std::string core = rule && !qstr(rule->title).trimmed().isEmpty()
+					 ? fillTemplate(rule->title, channel.gameName, detection.scene, keywords)
+					 : makeTitleCore(cfg, channel.gameName, detection.scene, keywords);
 	const std::string title = core.empty() ? std::string() : composeTitle(cfg, core);
 	progressHits_ = 0;
 	progressWaitLogged_ = false;
@@ -873,7 +922,7 @@ std::vector<std::string> Switcher::speechKeywords(const Settings &cfg, const std
 }
 
 std::string Switcher::makeTitleCore(const Settings &cfg, const std::string &game, const std::string &scene,
-				    const std::vector<std::string> &keywords, const std::string &previousTitle)
+				    const std::vector<std::string> &keywords)
 {
 	if (cfg.titleMode == TitleMode::Keep)
 		return {};
@@ -884,7 +933,6 @@ std::string Switcher::makeTitleCore(const Settings &cfg, const std::string &game
 		request.scene = scene;
 		request.keywords = keywords;
 		request.style = titleStyleFor(cfg);
-		request.previousTitle = previousTitle;
 		request.maxLength = coreTitleLimit(cfg);
 		request.language = titleLanguageName(cfg);
 		request.emojis = cfg.titleEmojis;
@@ -936,6 +984,7 @@ void Switcher::apply(const Settings &cfg, const Category &category, const std::s
 		     const std::vector<std::string> &keywords, const GameRule *rule)
 {
 	resetCandidate();
+	lastSkip_.clear();
 	ChannelInfo channel;
 	if (twitch_.connected()) {
 		channel = twitch_.getChannel();
@@ -959,7 +1008,7 @@ void Switcher::apply(const Settings &cfg, const Category &category, const std::s
 	if (rule && !qstr(rule->title).trimmed().isEmpty() && cfg.titleMode != TitleMode::Keep)
 		core = fillTemplate(rule->title, category.name, scene, keywords);
 	else
-		core = makeTitleCore(cfg, category.name, scene, keywords, channel.title);
+		core = makeTitleCore(cfg, category.name, scene, keywords);
 	const std::string title = core.empty() ? std::string() : composeTitle(cfg, core);
 
 	std::vector<std::string> tags = splitList(cfg.twitchTags);

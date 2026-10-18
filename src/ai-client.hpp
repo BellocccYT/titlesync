@@ -42,6 +42,7 @@ AiTarget aiTargetFrom(const Settings &settings);
 struct DetectContext {
 	std::string appHint;             // aufgenommene Programme und aktives Fenster
 	std::string previousGame;        // zuletzt erkanntes Spiel (Twitch-Kategorie)
+	std::string speech;              // zuletzt Gesprochenes (lokale Spracherkennung), hilft bei der Situation
 	std::string language = "German"; // Sprache für Situation und Stichwörter
 };
 
@@ -76,7 +77,6 @@ struct TitleRequest {
 	std::string scene;
 	std::vector<std::string> keywords;
 	std::string style;
-	std::string previousTitle;
 	std::string fixedParts; // feste Vorgaben, die der Code selbst anhängt – die KI soll sie nicht wiederholen
 	int maxLength = 140;
 	std::string language = "German";

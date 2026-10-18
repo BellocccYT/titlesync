@@ -123,16 +123,18 @@ Voraussetzung ist **OBS Studio 31 oder neuer**. Deinstallieren kannst du über *
 
 Diese Pakete werden automatisch gebaut, wurden aber noch nicht auf echten Geräten getestet. Rückmeldungen sind sehr willkommen!
 
-**Ubuntu, Debian, Linux Mint, Pop!_OS:** `titlesync-…-x86_64-linux-gnu.deb` herunterladen und mit `sudo apt install ./titlesync-…-x86_64-linux-gnu.deb` installieren.
+**Linux, alle Distributionen (Fedora, Arch, openSUSE, Ubuntu …), empfohlen:** `titlesync-…-x86_64-linux-setup.AppImage` herunterladen, OBS schließen, die Datei ausführbar machen (Rechtsklick → Eigenschaften → „Als Programm ausführen“ oder `chmod +x titlesync-*-linux-setup.AppImage`) und doppelklicken. Das Setup erkennt selbst, ob OBS normal oder als **Flatpak** installiert ist, prüft die OBS-Version und legt das Plugin an die richtige Stelle, ohne root. Ein erneuter Start bietet Aktualisieren oder Entfernen an.
 
-**Alle anderen Distributionen (Arch, Fedora, openSUSE …):** `titlesync-…-x86_64-linux-portable.tar.xz` herunterladen, OBS schließen und im Terminal:
+Ohne AppImage geht es auch im Terminal mit `titlesync-…-x86_64-linux-portable.tar.xz`:
 
 ```bash
 tar -xf titlesync-*-x86_64-linux-portable.tar.xz
-./install.sh
+./install.sh            # entfernen: ./install.sh --uninstall
 ```
 
-Das Plugin landet in `~/.config/obs-studio/plugins/titlesync`, root-Rechte sind nicht nötig. Entfernen mit `./install.sh --uninstall`. Voraussetzung ist ein aktuelles OBS Studio aus der Paketverwaltung deiner Distribution und eine aktuelle Distribution (glibc 2.39 oder neuer). Für OBS als Flatpak gibt es noch kein Paket.
+**Ubuntu, Debian, Linux Mint, Pop!_OS (OBS aus der Paketverwaltung):** alternativ `titlesync-…-x86_64-linux-gnu.deb` mit `sudo apt install ./titlesync-…-x86_64-linux-gnu.deb` installieren.
+
+Voraussetzung ist **OBS Studio 31.1 oder neuer** und eine aktuelle Distribution (glibc 2.38 oder neuer). Für die lokale KI zusätzlich Ollama: `curl -fsSL https://ollama.com/install.sh | sh`, danach `ollama pull qwen3-vl:4b-instruct`.
 
 **macOS:** `titlesync-…-macos-universal.pkg` herunterladen und öffnen.
 

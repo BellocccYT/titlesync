@@ -177,6 +177,94 @@ bool isEmulator(const std::string &executable)
 	return false;
 }
 
+namespace {
+
+// Programmname ohne „.exe“, klein geschrieben
+QString baseName(const QString &executable)
+{
+	QString name = executable.toLower();
+	if (name.endsWith(QLatin1String(".exe")))
+		name.chop(4);
+	return name;
+}
+
+bool isBrowser(const QString &executable)
+{
+	static const QStringList browsers = {"chrome",    "msedge",   "firefox", "brave", "opera",   "vivaldi", "arc",
+					     "librewolf", "waterfox", "floorp",  "zen",   "thorium", "chromium"};
+	return browsers.contains(baseName(executable));
+}
+
+bool isVideoPlayer(const QString &executable)
+{
+	static const QStringList players = {"vlc",
+					    "mpc-hc64",
+					    "mpc-hc",
+					    "mpc-be64",
+					    "mpc-be",
+					    "mpv",
+					    "potplayermini64",
+					    "potplayermini",
+					    "wmplayer",
+					    "video.ui",
+					    "microsoft.media.player",
+					    "smplayer",
+					    "kodi",
+					    "plex"};
+	return players.contains(baseName(executable));
+}
+
+// Aufnahmegeräte (Capture-Card, Webcam) zeigen oft ein Konsolenspiel – dann zählt das Video im Vordergrund nicht
+bool captureDeviceActive()
+{
+	bool active = false;
+	obs_enum_sources(
+		[](void *param, obs_source_t *source) {
+			const char *id = obs_source_get_unversioned_id(source);
+			if ((std::strcmp(id, "dshow_input") == 0 || std::strcmp(id, "av_capture_input") == 0 ||
+			     std::strcmp(id, "v4l2_input") == 0) &&
+			    obs_source_active(source) && obs_source_get_width(source) > 0) {
+				*static_cast<bool *>(param) = true;
+				return false;
+			}
+			return true;
+		},
+		&active);
+	return active;
+}
+
+} // namespace
+
+std::string videoInForeground(const std::vector<CapturedApp> &apps, const ForegroundWindow &foreground)
+{
+	const QString executable = QString::fromStdString(foreground.executable);
+	const QString title = QString::fromStdString(foreground.title);
+	if (executable.isEmpty())
+		return {};
+	// Nimmt OBS ein anderes Programm auf, ist das im Bild – nicht der Browser im Vordergrund
+	for (const CapturedApp &app : apps) {
+		const QString captured = QString::fromStdString(app.executable);
+		if (!isBrowser(captured) && !isVideoPlayer(captured))
+			return {};
+	}
+
+	bool video = isVideoPlayer(executable);
+	if (!video && isBrowser(executable)) {
+		static const char *const sites[] = {"YouTube", "Twitch",      "TikTok",     "Netflix",  "Prime Video",
+						    "Disney+", "Crunchyroll", "Kick",       "Vimeo",    "Dailymotion",
+						    "Joyn",    "Mediathek",   "Paramount+", "Apple TV", "DAZN"};
+		// Dashboards und Chats gehören zum eigenen Stream, dort läuft kein fremdes Video
+		static const char *const tools[] = {"Studio", "Stream Manager", "Dashboard", "Chat", "Creator"};
+		for (const char *site : sites)
+			video = video || title.contains(QLatin1String(site), Qt::CaseInsensitive);
+		for (const char *tool : tools)
+			video = video && !title.contains(QLatin1String(tool), Qt::CaseInsensitive);
+	}
+	if (!video || captureDeviceActive())
+		return {};
+	return title.isEmpty() ? foreground.executable : foreground.title;
+}
+
 std::string gameFromWindowTitle(const std::string &title)
 {
 	QString text = QString::fromStdString(title).simplified();
